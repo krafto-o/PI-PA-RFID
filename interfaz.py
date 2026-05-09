@@ -19,6 +19,9 @@ DB_PASSWORD = "root"
 DB_NAME = "rfid_registro"
 DB_PORT = 3306
 
+# Tiempo en milisegundos que la puerta permanece abierta y la GUI muestra el acceso
+TIEMPO_PUERTA = 5000
+
 modo_test = False
 is_connected = False
 
@@ -36,6 +39,7 @@ lblCargando = None
 rango_var = None
 entryBusqueda = None
 btnPoblarDB = None
+timer_standby = None
 
 
 def insertar_acceso(uuid, nombre, acceso_concedido):
@@ -254,9 +258,16 @@ def procesar_linea(linea):
 
 
 def actualizar_gui(uuid, nombre, acceso):
+    global timer_standby
+
+    if timer_standby is not None:
+        ventana_principal.after_cancel(timer_standby)
+        timer_standby = None
+
     if acceso:
         lbEstado.config(text=f"ACCESO: {nombre}", fg="green")
         lbUUID.config(text=f"UUID: {uuid}")
+        timer_standby = ventana_principal.after(TIEMPO_PUERTA, volver_standby)
     else:
         lbEstado.config(text=f"DENEGADO", fg="red")
         lbUUID.config(text=f"UUID: {uuid}")
@@ -267,6 +278,13 @@ def actualizar_gui(uuid, nombre, acceso):
     else:
         texto = f"[{hora}] DENEGADO: {uuid}"
     lbLog.config(text=texto)
+
+
+def volver_standby():
+    global timer_standby
+    timer_standby = None
+    lbEstado.config(text="Esperando...", fg="gray")
+    lbUUID.config(text="UUID: ---")
 
 
 def DataReceivedHandler():

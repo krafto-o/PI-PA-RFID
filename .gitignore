@@ -1,2 +1,4 @@
 .pio
 .cache/
+__pycache__/
+omit/

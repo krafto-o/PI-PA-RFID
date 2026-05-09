@@ -5,29 +5,31 @@
 #define RST_PIN 9
 #define SS_PIN 10
 #define RELAY_PIN 8
+#define TIEMPO_RELAY 5000
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 
 struct Usuario {
   byte uid[4];
-  const char* nombre;
+  const char *nombre;
 };
 
 Usuario usuarios[] = {
-  {{0xC3, 0xE4, 0x5F, 0x95}, "Julian"},
-  {{0xB3, 0x88, 0x7A, 0x95}, "Erik"},
-  {{0x63, 0xCA, 0x40, 0x95}, "Mama"},
+    {{0xC3, 0xE4, 0x5F, 0x95}, "Usuario1"},
+    {{0xCA, 0x3F, 0x1C, 0x06}, "Usuario2"},
+    {{0x53, 0xE9, 0x30, 0x06}, "Usuario3"},
 };
 const byte NUM_USUARIOS = sizeof(usuarios) / sizeof(usuarios[0]);
 
-void printUID(byte* uid, byte size) {
+void printUID(byte *uid, byte size) {
   for (byte i = 0; i < size; i++) {
-    if (uid[i] < 0x10) Serial.print("0");
+    if (uid[i] < 0x10)
+      Serial.print("0");
     Serial.print(uid[i], HEX);
   }
 }
 
-int buscarUsuario(byte* uidLeido) {
+int buscarUsuario(byte *uidLeido) {
   for (byte u = 0; u < NUM_USUARIOS; u++) {
     bool coincide = true;
     for (byte i = 0; i < 4; i++) {
@@ -36,7 +38,8 @@ int buscarUsuario(byte* uidLeido) {
         break;
       }
     }
-    if (coincide) return u;
+    if (coincide)
+      return u;
   }
   return -1;
 }
@@ -66,7 +69,7 @@ void loop() {
     Serial.println(usuarios[idx].nombre);
 
     digitalWrite(RELAY_PIN, LOW);
-    delay(5000);
+    delay(TIEMPO_RELAY);
     digitalWrite(RELAY_PIN, HIGH);
 
     Serial.println("CERRADO");

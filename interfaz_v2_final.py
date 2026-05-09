@@ -1,6 +1,5 @@
 import threading
 from datetime import datetime
-
 import mysql.connector
 import serial
 from tkinter import messagebox
@@ -16,12 +15,13 @@ DB_PASSWORD = "root"
 DB_NAME = "rfid_registro"
 DB_PORT = 3306
 
-# Colores de acento
 THEME = "equilux"
 COLOR_ACCESO = "#9C0E6C"
 COLOR_DENEGADO = "#541E75"
 COLOR_CONSULTA = "#2930AC"
 COLOR_SALIR = "#F10060"
+
+TIEMPO_PUERTA = 5000
 
 is_connected = False
 
@@ -31,13 +31,13 @@ arduino.baudrate = BAUDIOS
 arduino.timeout = 0.5
 arduino.write_timeout = 0.5
 
-# Globals for consultation window
 ventana_consulta = None
 tree = None
 lblCount = None
 lblCargando = None
 rango_var = None
 entryBusqueda = None
+timer_standby = None
 
 
 def insertar_acceso(uuid, nombre, acceso_concedido):
@@ -285,9 +285,16 @@ def procesar_linea(linea):
 
 
 def actualizar_gui(uuid, nombre, acceso):
+    global timer_standby
+
+    if timer_standby is not None:
+        ventana_principal.after_cancel(timer_standby)
+        timer_standby = None
+
     if acceso:
         lbEstado.config(text=f"ACCESO: {nombre}", style="Access.TLabel")
         lbUUID.config(text=f"UUID: {uuid}")
+        timer_standby = ventana_principal.after(TIEMPO_PUERTA, volver_standby)
     else:
         lbEstado.config(text=f"DENEGADO", style="Denied.TLabel")
         lbUUID.config(text=f"UUID: {uuid}")
@@ -298,6 +305,13 @@ def actualizar_gui(uuid, nombre, acceso):
     else:
         texto = f"[{hora}] DENEGADO: {uuid}"
     lbLog.config(text=texto)
+
+
+def volver_standby():
+    global timer_standby
+    timer_standby = None
+    lbEstado.config(text="Esperando...", style="")
+    lbUUID.config(text="UUID: ---")
 
 
 def DataReceivedHandler():
@@ -377,7 +391,7 @@ style.configure("Connect.TButton", background=COLOR_ACCESO, foreground="white")
 style.configure("Disconnect.TButton", background=COLOR_DENEGADO, foreground="white")
 style.configure("Consult.TButton", background=COLOR_CONSULTA, foreground="white")
 style.configure("Exit.TButton", background=COLOR_SALIR, foreground="white")
-style.configure("Search.TButton", background=COLOR_SALIR, foreground="white")
+style.configure("Search.TButton", background=COLOR_ACCESO, foreground="white")
 style.configure("Clear.TButton", background=COLOR_DENEGADO, foreground="white")
 style.configure("Close.TButton", background=COLOR_SALIR, foreground="white")
 style.configure("Access.TLabel", foreground=COLOR_ACCESO)
@@ -438,4 +452,3 @@ btnSalir.pack()
 
 ventana_principal.protocol("WM_DELETE_WINDOW", on_closing)
 ventana_principal.mainloop()
-

@@ -26,6 +26,9 @@ COLOR_DENEGADO = "#541E75"
 COLOR_CONSULTA = "#2930AC"
 COLOR_SALIR = "#F10060"
 
+# Tiempo en milisegundos que la puerta permanece abierta y la GUI muestra el acceso
+TIEMPO_PUERTA = 5000
+
 modo_test = False
 is_connected = False
 
@@ -43,6 +46,7 @@ lblCargando = None
 rango_var = None
 entryBusqueda = None
 btnPoblarDB = None
+timer_standby = None
 
 
 def insertar_acceso(uuid, nombre, acceso_concedido):
@@ -122,7 +126,11 @@ def poblar_treeview(rows):
         uuid, nombre, acceso, fecha = row
         acceso_str = "ACCESO" if acceso else "DENEGADO"
         nombre_str = nombre if nombre else "---"
-        fecha_str = fecha.strftime("%Y-%m-%d %H:%M:%S") if isinstance(fecha, datetime) else str(fecha)
+        fecha_str = (
+            fecha.strftime("%Y-%m-%d %H:%M:%S")
+            if isinstance(fecha, datetime)
+            else str(fecha)
+        )
         tree.insert("", "end", values=(uuid, nombre_str, acceso_str, fecha_str))
 
     lblCount.config(text=f"Total: {len(rows)} registros")
@@ -160,12 +168,24 @@ def on_buscar():
 
 def on_poblar_db():
     count = test_simulator.poblar_db_prueba()
-    ventana_principal.after(0, lambda: messagebox.showinfo("Poblar DB", f"Se insertaron {count} registros de prueba"))
+    ventana_principal.after(
+        0,
+        lambda: messagebox.showinfo(
+            "Poblar DB", f"Se insertaron {count} registros de prueba"
+        ),
+    )
     on_rango_change()
 
 
 def abrir_ventana_consulta():
-    global ventana_consulta, tree, lblCount, lblCargando, rango_var, entryBusqueda, btnPoblarDB
+    global \
+        ventana_consulta, \
+        tree, \
+        lblCount, \
+        lblCargando, \
+        rango_var, \
+        entryBusqueda, \
+        btnPoblarDB
 
     if ventana_consulta is not None and ventana_consulta.winfo_exists():
         ventana_consulta.lift()
@@ -181,10 +201,34 @@ def abrir_ventana_consulta():
     frame_rangos = ttk.Frame(ventana_consulta)
     frame_rangos.pack(pady=10)
 
-    ttk.Radiobutton(frame_rangos, text="Última hora", variable=rango_var, value="hora", command=on_rango_change).pack(side=tk.LEFT, padx=10)
-    ttk.Radiobutton(frame_rangos, text="Hoy", variable=rango_var, value="dia", command=on_rango_change).pack(side=tk.LEFT, padx=10)
-    ttk.Radiobutton(frame_rangos, text="Semana", variable=rango_var, value="semana", command=on_rango_change).pack(side=tk.LEFT, padx=10)
-    ttk.Radiobutton(frame_rangos, text="Mes", variable=rango_var, value="mes", command=on_rango_change).pack(side=tk.LEFT, padx=10)
+    ttk.Radiobutton(
+        frame_rangos,
+        text="Última hora",
+        variable=rango_var,
+        value="hora",
+        command=on_rango_change,
+    ).pack(side=tk.LEFT, padx=10)
+    ttk.Radiobutton(
+        frame_rangos,
+        text="Hoy",
+        variable=rango_var,
+        value="dia",
+        command=on_rango_change,
+    ).pack(side=tk.LEFT, padx=10)
+    ttk.Radiobutton(
+        frame_rangos,
+        text="Semana",
+        variable=rango_var,
+        value="semana",
+        command=on_rango_change,
+    ).pack(side=tk.LEFT, padx=10)
+    ttk.Radiobutton(
+        frame_rangos,
+        text="Mes",
+        variable=rango_var,
+        value="mes",
+        command=on_rango_change,
+    ).pack(side=tk.LEFT, padx=10)
 
     frame_busqueda = ttk.Frame(ventana_consulta)
     frame_busqueda.pack(pady=5)
@@ -193,11 +237,23 @@ def abrir_ventana_consulta():
     entryBusqueda.pack(side=tk.LEFT, padx=5)
     entryBusqueda.bind("<Return>", lambda e: on_buscar())
 
-    ttk.Button(frame_busqueda, text="Buscar", command=on_buscar, style="Search.TButton").pack(side=tk.LEFT, padx=5)
-    ttk.Button(frame_busqueda, text="Limpiar", command=lambda: [entryBusqueda.delete(0, tk.END), on_rango_change()], style="Clear.TButton").pack(side=tk.LEFT, padx=5)
+    ttk.Button(
+        frame_busqueda, text="Buscar", command=on_buscar, style="Search.TButton"
+    ).pack(side=tk.LEFT, padx=5)
+    ttk.Button(
+        frame_busqueda,
+        text="Limpiar",
+        command=lambda: [entryBusqueda.delete(0, tk.END), on_rango_change()],
+        style="Clear.TButton",
+    ).pack(side=tk.LEFT, padx=5)
 
     if modo_test:
-        btnPoblarDB = ttk.Button(frame_busqueda, text="Poblar DB", command=on_poblar_db, style="Populate.TButton")
+        btnPoblarDB = ttk.Button(
+            frame_busqueda,
+            text="Poblar DB",
+            command=on_poblar_db,
+            style="Populate.TButton",
+        )
         btnPoblarDB.pack(side=tk.LEFT, padx=5)
 
     lblCargando = ttk.Label(ventana_consulta, text="")
@@ -224,7 +280,13 @@ def abrir_ventana_consulta():
     frame_cerrar = ttk.Frame(ventana_consulta)
     frame_cerrar.pack(pady=10)
 
-    ttk.Button(frame_cerrar, text="Cerrar", command=ventana_consulta.destroy, width=12, style="Close.TButton").pack()
+    ttk.Button(
+        frame_cerrar,
+        text="Cerrar",
+        command=ventana_consulta.destroy,
+        width=12,
+        style="Close.TButton",
+    ).pack()
 
     ventana_consulta.protocol("WM_DELETE_WINDOW", lambda: [ventana_consulta.destroy()])
 
@@ -243,7 +305,9 @@ def procesar_linea(linea):
             uuid = partes[1]
             nombre = partes[2]
             insertar_acceso(uuid, nombre, True)
-            ventana_principal.after(0, lambda u=uuid, n=nombre: actualizar_gui(u, n, True))
+            ventana_principal.after(
+                0, lambda u=uuid, n=nombre: actualizar_gui(u, n, True)
+            )
 
     elif linea.startswith("DENEGADO:"):
         partes = linea.split(":")
@@ -257,9 +321,16 @@ def procesar_linea(linea):
 
 
 def actualizar_gui(uuid, nombre, acceso):
+    global timer_standby
+
+    if timer_standby is not None:
+        ventana_principal.after_cancel(timer_standby)
+        timer_standby = None
+
     if acceso:
         lbEstado.config(text=f"ACCESO: {nombre}", style="Access.TLabel")
         lbUUID.config(text=f"UUID: {uuid}")
+        timer_standby = ventana_principal.after(TIEMPO_PUERTA, volver_standby)
     else:
         lbEstado.config(text=f"DENEGADO", style="Denied.TLabel")
         lbUUID.config(text=f"UUID: {uuid}")
@@ -272,6 +343,13 @@ def actualizar_gui(uuid, nombre, acceso):
     lbLog.config(text=texto)
 
 
+def volver_standby():
+    global timer_standby
+    timer_standby = None
+    lbEstado.config(text="Esperando...", style="")
+    lbUUID.config(text="UUID: ---")
+
+
 def DataReceivedHandler():
     global is_connected
     while is_connected:
@@ -281,7 +359,9 @@ def DataReceivedHandler():
                 if linea:
                     procesar_linea(linea)
         except serial.SerialException:
-            ventana_principal.after(0, lambda: messagebox.showerror("Error", "Conexion serial perdida"))
+            ventana_principal.after(
+                0, lambda: messagebox.showerror("Error", "Conexion serial perdida")
+            )
             break
         except Exception as e:
             print(f"Error lectura: {e}")
@@ -350,7 +430,9 @@ def on_closing():
 
 
 parser = argparse.ArgumentParser(description="Interfaz RFID - Control de acceso")
-parser.add_argument("--test", action="store_true", help="Modo test: simula datos sin Arduino")
+parser.add_argument(
+    "--test", action="store_true", help="Modo test: simula datos sin Arduino"
+)
 args = parser.parse_args()
 modo_test = args.test
 
@@ -361,14 +443,14 @@ bg_color = ttk.Style().lookup("TFrame", "background")
 ventana_principal.configure(bg=bg_color)
 
 style = ttk.Style()
-style.configure("Connect.TButton", bordercolor=COLOR_ACCESO, focuscolor=COLOR_ACCESO)
-style.configure("Disconnect.TButton", bordercolor=COLOR_DENEGADO, focuscolor=COLOR_DENEGADO)
-style.configure("Consult.TButton", bordercolor=COLOR_CONSULTA, focuscolor=COLOR_CONSULTA)
-style.configure("Exit.TButton", bordercolor=COLOR_SALIR, focuscolor=COLOR_SALIR)
-style.configure("Search.TButton", bordercolor=COLOR_SALIR, focuscolor=COLOR_SALIR)
-style.configure("Clear.TButton", bordercolor=COLOR_DENEGADO, focuscolor=COLOR_DENEGADO)
-style.configure("Close.TButton", bordercolor=COLOR_SALIR, focuscolor=COLOR_SALIR)
-style.configure("Populate.TButton", bordercolor=COLOR_CONSULTA, focuscolor=COLOR_CONSULTA)
+style.configure("Connect.TButton", background=COLOR_ACCESO, foreground="white")
+style.configure("Disconnect.TButton", background=COLOR_DENEGADO, foreground="white")
+style.configure("Consult.TButton", background=COLOR_CONSULTA, foreground="white")
+style.configure("Exit.TButton", background=COLOR_SALIR, foreground="white")
+style.configure("Search.TButton", background=COLOR_ACCESO, foreground="white")
+style.configure("Clear.TButton", background=COLOR_DENEGADO, foreground="white")
+style.configure("Close.TButton", background=COLOR_SALIR, foreground="white")
+style.configure("Populate.TButton", background=COLOR_CONSULTA, foreground="white")
 style.configure("Access.TLabel", foreground=COLOR_ACCESO)
 style.configure("Denied.TLabel", foreground=COLOR_DENEGADO)
 
@@ -389,24 +471,48 @@ lbLog.pack(pady=5)
 frame_botones = ttk.Frame(ventana_principal)
 frame_botones.pack(pady=15)
 
-btnConectar = ttk.Button(frame_botones, text="Conectar", command=btnConectar_Click, width=12, style="Connect.TButton")
+btnConectar = ttk.Button(
+    frame_botones,
+    text="Conectar",
+    command=btnConectar_Click,
+    width=12,
+    style="Connect.TButton",
+)
 btnConectar.grid(row=0, column=0, padx=5)
 
-btnDesconectar = ttk.Button(frame_botones, text="Desconectar", command=btnDesconectar_Click, width=12, state=tk.DISABLED, style="Disconnect.TButton")
+btnDesconectar = ttk.Button(
+    frame_botones,
+    text="Desconectar",
+    command=btnDesconectar_Click,
+    width=12,
+    state=tk.DISABLED,
+    style="Disconnect.TButton",
+)
 btnDesconectar.grid(row=0, column=1, padx=5)
 
-btnConsultar = ttk.Button(frame_botones, text="Consultar", command=abrir_ventana_consulta, width=12, style="Consult.TButton")
+btnConsultar = ttk.Button(
+    frame_botones,
+    text="Consultar",
+    command=abrir_ventana_consulta,
+    width=12,
+    style="Consult.TButton",
+)
 btnConsultar.grid(row=0, column=2, padx=5)
 
 if modo_test:
-    btnSimular = ttk.Button(frame_botones, text="Simular", command=btnSimular_Click, width=12)
+    btnSimular = ttk.Button(
+        frame_botones, text="Simular", command=btnSimular_Click, width=12
+    )
     btnSimular.grid(row=0, column=3, padx=5)
 
 frame_salir = ttk.Frame(ventana_principal)
 frame_salir.pack(pady=10)
 
-btnSalir = ttk.Button(frame_salir, text="Salir", command=on_closing, width=20, style="Exit.TButton")
+btnSalir = ttk.Button(
+    frame_salir, text="Salir", command=on_closing, width=20, style="Exit.TButton"
+)
 btnSalir.pack()
 
 ventana_principal.protocol("WM_DELETE_WINDOW", on_closing)
 ventana_principal.mainloop()
+
