@@ -2,63 +2,79 @@
 #include <MFRC522.h>
 #include <SPI.h>
 
-// Definición de pines
 #define RST_PIN 9
 #define SS_PIN 10
 #define RELAY_PIN 8
 
-// Instancia del lector RFID
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 
-// Define aquí el UID de tu tarjeta autorizada
-// Necesitarás leer tu tarjeta una vez para conocer estos valores y
-// reemplazarlos
-byte tarjetaAutorizada[4] = {0xC3, 0xE4, 0x5F, 0x95};
+struct Usuario {
+  byte uid[4];
+  const char* nombre;
+};
+
+Usuario usuarios[] = {
+  {{0xC3, 0xE4, 0x5F, 0x95}, "Julian"},
+  {{0xB3, 0x88, 0x7A, 0x95}, "Erik"},
+  {{0x63, 0xCA, 0x40, 0x95}, "Mama"},
+};
+const byte NUM_USUARIOS = sizeof(usuarios) / sizeof(usuarios[0]);
+
+void printUID(byte* uid, byte size) {
+  for (byte i = 0; i < size; i++) {
+    if (uid[i] < 0x10) Serial.print("0");
+    Serial.print(uid[i], HEX);
+  }
+}
+
+int buscarUsuario(byte* uidLeido) {
+  for (byte u = 0; u < NUM_USUARIOS; u++) {
+    bool coincide = true;
+    for (byte i = 0; i < 4; i++) {
+      if (uidLeido[i] != usuarios[u].uid[i]) {
+        coincide = false;
+        break;
+      }
+    }
+    if (coincide) return u;
+  }
+  return -1;
+}
 
 void setup() {
-  Serial.begin(9600); // Inicializa comunicación serie para debugging
-  SPI.begin();        // Inicializa el bus SPI
-  mfrc522.PCD_Init(); // Inicializa el módulo MFRC522
+  Serial.begin(9600);
+  SPI.begin();
+  mfrc522.PCD_Init();
 
-  // Configuración del relevador
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, HIGH); // Comienza apagado (Lógica inversa)
+  digitalWrite(RELAY_PIN, HIGH);
 
-  Serial.println("Sistema inicializado. Acerca tu tarjeta al lector...");
+  Serial.println("READY");
 }
 
 void loop() {
-  // 1. Revisa si hay una tarjeta nueva presente
   if (!mfrc522.PICC_IsNewCardPresent() || !mfrc522.PICC_ReadCardSerial()) {
-    return; // Si no hay tarjeta, reinicia el loop
+    return;
   }
 
-  Serial.print("UID leído: ");
-  bool accesoConcedido = true;
+  int idx = buscarUsuario(mfrc522.uid.uidByte);
 
-  // 2. Compara el UID leído con el UID autorizado
-  for (byte i = 0; i < mfrc522.uid.size; i++) {
-    Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
-    Serial.print(mfrc522.uid.uidByte[i], HEX);
+  if (idx >= 0) {
+    Serial.print("ACCESO:");
+    printUID(mfrc522.uid.uidByte, mfrc522.uid.size);
+    Serial.print(":");
+    Serial.println(usuarios[idx].nombre);
 
-    if (mfrc522.uid.uidByte[i] != tarjetaAutorizada[i]) {
-      accesoConcedido = false;
-    }
-  }
-  Serial.println();
+    digitalWrite(RELAY_PIN, LOW);
+    delay(5000);
+    digitalWrite(RELAY_PIN, HIGH);
 
-  // 3. Ejecuta la acción del relevador
-  if (accesoConcedido) {
-    Serial.println("Acceso concedido. Abriendo...");
-    digitalWrite(RELAY_PIN, HIGH); // Activa el relevador
-    delay(5000);                   // Mantiene abierto por 3 segundos
-    digitalWrite(RELAY_PIN, LOW);  // Desactiva el relevador
-    Serial.println("Cerrado.");
+    Serial.println("CERRADO");
   } else {
-    Serial.println("Acceso denegado.");
+    Serial.print("DENEGADO:");
+    printUID(mfrc522.uid.uidByte, mfrc522.uid.size);
+    Serial.println();
   }
 
-  // 4. Detiene la lectura de la tarjeta actual para evitar lecturas repetidas
-  // instantáneas
   mfrc522.PICC_HaltA();
 }
